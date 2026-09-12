@@ -200,8 +200,22 @@ export class UsersService {
     }
   }
 
-  async remove(id: string, actor: any) {
+  async resetPassword(id: string, actor: any) {
     this.ensureSuperadmin(actor);
+    const target = await this.db.user.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!target) throw new NotFoundException('User not found');
+    const fallback = process.env.DEFAULT_RESET_PASSWORD || 'secret123';
+    await this.db.user.update({
+      where: { id },
+      data: { password: await bcrypt.hash(fallback, 12) },
+    });
+    return { success: true };
+  }
+
+  async remove(id: string, actor: any) {    this.ensureSuperadmin(actor);
     const result = await this.db.user.updateMany({
       where: { id, deletedAt: null },
       data: { deletedAt: new Date() },

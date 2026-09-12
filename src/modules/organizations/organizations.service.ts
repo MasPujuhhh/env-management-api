@@ -31,6 +31,11 @@ export class OrganizationsService {
       },
       include: { organization: true },
     });
+
+    console.log(manager)
+
+    console.log(member);
+
     if (!member || member.organization.deletedAt)
       throw new ForbiddenException('Organization access denied');
     if (manager && member.role !== 'MANAGER')
@@ -201,5 +206,14 @@ export class OrganizationsService {
     } catch {
       throw new ConflictException('User or membership already exists');
     }
+  }
+
+  async removeMember(id: string, memberId: string, user: any) {
+    await this.access(id, user, true);
+    const result = await this.db.organizationMember.deleteMany({
+      where: { id: memberId, organizationId: id },
+    });
+    if (!result.count) throw new NotFoundException('Organization member not found');
+    return { success: true };
   }
 }

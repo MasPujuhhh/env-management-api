@@ -47,4 +47,12 @@ export class OrganizationsController {
   ) {
     return this.service.addMember(id, d, r.user);
   }
+
+  @Delete(':id/members/:memberId') removeMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @Req() r: any,
+  ) {
+    return this.service.removeMember(id, memberId, r.user);
+  }
 }

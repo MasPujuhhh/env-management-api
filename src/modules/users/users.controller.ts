@@ -43,6 +43,11 @@ export class UsersController {
     return this.service.update(id, dto, req.user);
   }
 
+  @Post(':id/reset-password')
+  resetPassword(@Param('id') id: string, @Req() req: any) {
+    return this.service.resetPassword(id, req.user);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.service.remove(id, req.user);
