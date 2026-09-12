@@ -1,0 +1,67 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Build application
+        run: npm run build
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p deploy
+
+          cp -r dist deploy/dist
+          cp -r prisma deploy/prisma
+
+          cp package.json deploy/
+          cp package-lock.json deploy/
+          cp ecosystem.config.cjs deploy/
+
+      - name: Upload application to VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: 'deploy/*'
+          target: '/var/www/wg-vault/backend'
+          strip_components: 1
+
+      - name: Install dependencies and restart application
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /var/www/wg-vault/backend
+
+            npm ci --omit=dev
+
+            npm run prisma:migrate:deploy
+
+            pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
+
+            pm2 save
