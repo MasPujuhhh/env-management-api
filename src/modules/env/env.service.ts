@@ -23,9 +23,7 @@ export class EnvController {
   ) {}
 
   private quote(value: string) {
-    return /[\s#='"\\]/.test(value)
-      ? JSON.stringify(value)
-      : value;
+    return /[\s#='"\\]/.test(value) ? JSON.stringify(value) : value;
   }
 
   /**
@@ -44,10 +42,7 @@ export class EnvController {
    * encrypted payload
    */
   @Get(':repository')
-  async get(
-    @Param('repository') slug: string,
-    @Req() r: any,
-  ) {
+  async get(@Param('repository') slug: string, @Req() r: any) {
     const repo = await this.db.repository.findFirst({
       where: {
         slug,
@@ -65,6 +60,7 @@ export class EnvController {
     const rows = await this.db.secret.findMany({
       where: {
         repositoryId: repo.id,
+        type: 'SECRET',
       },
       orderBy: {
         key: 'asc',
@@ -77,9 +73,7 @@ export class EnvController {
           return null;
         }
 
-        const value = this.enc.decrypt(
-          secret.encryptedValue,
-        );
+        const value = secret.encryptedValue;
 
         return `${secret.key}=${this.quote(value)}`;
       })
@@ -136,9 +130,7 @@ export class EnvController {
         data,
       };
     } catch {
-      throw new BadRequestException(
-        'Invalid encrypted environment payload',
-      );
+      throw new BadRequestException('Invalid encrypted environment payload');
     }
   }
 }
