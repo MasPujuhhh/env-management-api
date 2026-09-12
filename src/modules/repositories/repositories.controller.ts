@@ -40,6 +40,11 @@ export class RepositoriesController {
     return this.service.one(id, req.user);
   }
 
+  @Post('repositories/:id/duplicate')
+  duplicate(@Param('id') id: string, @Req() req: any) {
+    return this.service.duplicate(id, req.user);
+  }
+
   @Patch('repositories/:id')
   update(@Param('id') id: string, @Body() dto: RepositoryDto, @Req() req: any) {
     return this.service.update(id, dto, req.user);

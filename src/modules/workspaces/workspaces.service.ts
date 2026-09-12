@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { createId } from '@paralleldrive/cuid2';
 import { WorkspaceDto } from './dto/workspace.dto';
 
 @Injectable()
@@ -57,6 +58,7 @@ export class WorkspacesService {
         const workspace = await tx.workspace.create({
           data: {
             ...dto,
+            slug: createId(),
             organizationId,
             createdBy: user.id,
           },
@@ -74,6 +76,75 @@ export class WorkspacesService {
     } catch (error) {
       throw new ConflictException('Workspace slug already exists');
     }
+  }
+
+  async duplicate(organizationId: string, workspaceId: string, user: any) {
+    await this.organizationRole(organizationId, user.id);
+    await this.workspaceAccess(workspaceId, user, true);
+
+    const source = await this.db.workspace.findFirst({
+      where: { id: workspaceId, deletedAt: null },
+      include: {
+        groups: {
+          where: { deletedAt: null },
+          include: { repositories: { where: { deletedAt: null }, include: { secrets: true } } },
+        },
+      },
+    });
+
+    if (!source) throw new NotFoundException('Workspace not found');
+
+    const copy = await this.db.workspace.create({
+      data: {
+        organizationId,
+        name: `${source.name} Copy`,
+        slug: createId(),
+        description: source.description,
+        createdBy: user.id,
+      },
+    });
+
+    for (const group of source.groups) {
+      const createdGroup = await this.db.repositoryGroup.create({
+        data: {
+          workspaceId: copy.id,
+          name: `${group.name} Copy`,
+          slug: createId(),
+          description: group.description,
+          createdBy: user.id,
+        },
+      });
+
+      for (const repository of group.repositories) {
+        const createdRepository = await this.db.repository.create({
+          data: {
+            repositoryGroupId: createdGroup.id,
+            name: `${repository.name} Copy`,
+            slug: createId(),
+            description: repository.description,
+            createdBy: user.id,
+          },
+        });
+
+        if (repository.secrets.length > 0) {
+          await this.db.secret.createMany({
+            data: repository.secrets.map((secret) => ({
+              repositoryId: createdRepository.id,
+              key: secret.key,
+              value: secret.value,
+              encryptedValue: secret.encryptedValue,
+              type: secret.type,
+              sortOrder: secret.sortOrder,
+              description: secret.description,
+              createdBy: user.id,
+              updatedBy: user.id,
+            })),
+          });
+        }
+      }
+    }
+
+    return copy;
   }
 
   get(id: string, user: any) {

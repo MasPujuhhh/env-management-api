@@ -36,6 +36,69 @@ export class UsersService {
     });
   }
 
+  async accessOverview(actor: any) {
+    if (actor.systemRole === 'SUPERADMIN') {
+      return this.db.organization.findMany({
+        where: { deletedAt: null },
+        orderBy: { name: 'asc' },
+        include: {
+          workspaces: {
+            where: { deletedAt: null },
+            orderBy: { name: 'asc' },
+            include: {
+              groups: {
+                where: { deletedAt: null },
+                orderBy: { name: 'asc' },
+                include: {
+                  repositories: {
+                    where: { deletedAt: null },
+                    orderBy: { name: 'asc' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    const organizations = await this.db.organization.findMany({
+      where: {
+        deletedAt: null,
+        members: { some: { userId: actor.id } },
+      },
+      orderBy: { name: 'asc' },
+      include: {
+        workspaces: {
+          where: { deletedAt: null },
+          orderBy: { name: 'asc' },
+          include: {
+            groups: {
+              where: { deletedAt: null },
+              orderBy: { name: 'asc' },
+              include: {
+                repositories: {
+                  where: { deletedAt: null },
+                  orderBy: { name: 'asc' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return organizations.filter((organization) => {
+      const validWorkspaces = organization.workspaces.filter((workspace) => {
+        const validGroups = workspace.groups.filter((group) =>
+          group.repositories.length >= 0,
+        );
+        return validGroups.length >= 0;
+      });
+      return validWorkspaces.length >= 0;
+    });
+  }
+
   async get(id: string, actor: any) {
     if (actor.systemRole !== 'SUPERADMIN' && actor.id !== id) {
       throw new ForbiddenException('User access denied');

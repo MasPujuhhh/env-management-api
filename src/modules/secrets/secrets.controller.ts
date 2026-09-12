@@ -40,7 +40,7 @@ export class SecretsController {
     return this.service.sync(repositoryId, dto, req.user);
   }
 
-  @Patch('secrets/:secretId')
+  @Patch('repositories/:repositoryId/secrets/:secretId')
   edit(
     @Param('repositoryId') repositoryId: string,
     @Param('secretId') secretId: string,
@@ -50,7 +50,7 @@ export class SecretsController {
     return this.service.edit(repositoryId, secretId, dto, req.user);
   }
 
-  @Delete('secrets/:secretId')
+  @Delete('repositories/:repositoryId/secrets/:secretId')
   del(
     @Param('repositoryId') repositoryId: string,
     @Param('secretId') secretId: string,

@@ -11,6 +11,7 @@ import { OrganizationsModule } from "./modules/organizations/organizations.modul
 import { WorkspacesModule } from "./modules/workspaces/workspaces.module";
 import { RepositoryGroupsModule } from "./modules/repository-groups/repository-groups.module";
 import { UsersModule } from "./modules/users/users.module";
+import { SidebarModule } from "./modules/sidebar/sidebar.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -25,6 +26,7 @@ import { UsersModule } from "./modules/users/users.module";
     WorkspacesModule,
     RepositoryGroupsModule,
     UsersModule,
+    SidebarModule,
   ],
 })
 export class AppModule {}

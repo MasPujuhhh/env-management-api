@@ -29,6 +29,14 @@ export class WorkspacesController {
     return this.service.get(id, r.user);
   }
 
+  @Post('organizations/:organizationId/workspaces/:workspaceId/duplicate') duplicate(
+    @Param('organizationId') organizationId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Req() r: any,
+  ) {
+    return this.service.duplicate(organizationId, workspaceId, r.user);
+  }
+
   @Patch('organizations/:organizationId/workspaces/:workspaceId') update(
     @Param('workspaceId') id: string,
     @Body() d: WorkspaceDto,

@@ -23,6 +23,11 @@ export class UsersController {
     return this.service.list(req.user);
   }
 
+  @Get('access')
+  accessOverview(@Req() req: any) {
+    return this.service.accessOverview(req.user);
+  }
+
   @Post()
   create(@Body() dto: CreateUserDto, @Req() req: any) {
     return this.service.create(dto, req.user);

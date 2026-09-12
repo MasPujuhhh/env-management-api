@@ -11,6 +11,8 @@ import { PrismaService } from '../database/prisma.service';
 import { PaginationDto } from '../common/pagination.dto';
 import { RepositoryDto } from './dto/repository.dto';
 
+import { createId } from '@paralleldrive/cuid2';
+
 @Injectable()
 export class RepositoriesService {
   constructor(private readonly db: PrismaService) {}
@@ -204,15 +206,14 @@ export class RepositoriesService {
     await this.repositoryGroupAccess(groupId, user, true);
 
     try {
-      return await this.db.repository.create({
-        data: {
-          ...dto,
+      const payload = {
+        ...dto,
+        repositoryGroupId: groupId,
+        slug: createId(),
+        createdBy: user.id,
+      };
 
-          repositoryGroupId: groupId,
-
-          createdBy: user.id,
-        },
-      });
+      return await this.db.repository.create({ data: payload });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Repository slug already exists in this group');
@@ -220,6 +221,48 @@ export class RepositoriesService {
 
       throw error;
     }
+  }
+
+  async duplicate(id: string, user: any) {
+    const source = await this.repositoryAccess(id, user, true);
+    const group = await this.db.repositoryGroup.findFirst({
+      where: { id: source.repositoryGroupId, deletedAt: null },
+      include: { workspace: true },
+    });
+
+    if (!group) throw new NotFoundException('Repository group not found');
+
+    const copy = await this.db.repository.create({
+      data: {
+        repositoryGroupId: source.repositoryGroupId,
+        name: `${source.name} Copy`,
+        slug: createId(),
+        description: source.description,
+        createdBy: user.id,
+      },
+    });
+
+    const secrets = await this.db.secret.findMany({
+      where: { repositoryId: source.id },
+    });
+
+    if (secrets.length > 0) {
+      await this.db.secret.createMany({
+        data: secrets.map((secret) => ({
+          repositoryId: copy.id,
+          key: secret.key,
+          value: secret.value,
+          encryptedValue: secret.encryptedValue,
+          type: secret.type,
+          sortOrder: secret.sortOrder,
+          description: secret.description,
+          createdBy: user.id,
+          updatedBy: user.id,
+        })),
+      });
+    }
+
+    return copy;
   }
 
   /**

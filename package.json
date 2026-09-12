@@ -18,6 +18,7 @@
         "@nestjs/jwt": "^11.0.0",
         "@nestjs/platform-express": "^11.0.0",
         "@nestjs/throttler": "^6.4.0",
+        "@paralleldrive/cuid2": "^3.3.0",
         "@prisma/client": "^6.0.0",
         "bcrypt": "^5.1.1",
         "class-transformer": "^0.5.1",

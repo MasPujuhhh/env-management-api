@@ -14,6 +14,13 @@ export class AuthController {
   }
   @UseGuards(JwtGuard)
   @Get("me") me(@Req() req: any) {
-    return req.user ? { id: req.user.id, email: req.user.email } : null;
+    return req.user
+      ? {
+          id: req.user.id,
+          email: req.user.email,
+          name: req.user.name,
+          systemRole: req.user.systemRole,
+        }
+      : null;
   }
 }

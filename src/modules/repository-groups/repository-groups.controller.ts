@@ -22,6 +22,18 @@ export class RepositoryGroupsController {
     return this.service.list(id, r.user);
   }
 
+  @Post('workspaces/:workspaceId/repository-groups/:groupId/duplicate') duplicate(
+    @Param('workspaceId') workspaceId: string,
+    @Param('groupId') groupId: string,
+    @Req() r: any,
+  ) {
+    return this.service.duplicate(workspaceId, groupId, r.user);
+  }
+
+  @Get('repository-groups/:id') one(@Param('id') id: string, @Req() r: any) {
+    return this.service.one(id, r.user);
+  }
+
   @Patch('repository-groups/:id') update(
     @Param('id') id: string,
     @Body() d: RepositoryGroupDto,

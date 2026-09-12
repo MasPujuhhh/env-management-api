@@ -84,8 +84,6 @@ export class SecretsService {
   async list(repositoryId: string, user: any, types?: string[]) {
     await this.repo(repositoryId, user);
 
-    console.log(types)
-
     const secrets = await this.db.secret.findMany({
       where: {
         repositoryId,

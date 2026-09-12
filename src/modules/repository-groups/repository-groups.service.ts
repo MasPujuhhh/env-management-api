@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../database/prisma.service';
+import { createId } from '@paralleldrive/cuid2';
 import { RepositoryGroupDto } from './dto/repository-group.dto';
 
 @Injectable()
@@ -111,6 +112,7 @@ export class RepositoryGroupsService {
       return await this.db.repositoryGroup.create({
         data: {
           ...dto,
+          slug: createId(),
           workspaceId,
           createdBy: user.id,
         },
@@ -122,6 +124,56 @@ export class RepositoryGroupsService {
 
       throw error;
     }
+  }
+
+  async duplicate(workspaceId: string, groupId: string, user: any) {
+    await this.workspaceAccess(workspaceId, user, true);
+    const source = await this.db.repositoryGroup.findFirst({
+      where: { id: groupId, workspaceId, deletedAt: null },
+      include: { repositories: { where: { deletedAt: null }, include: { secrets: true } } },
+    });
+
+    if (!source) throw new NotFoundException('Repository group not found');
+
+    const copy = await this.db.repositoryGroup.create({
+      data: {
+        workspaceId,
+        name: `${source.name} Copy`,
+        slug: createId(),
+        description: source.description,
+        createdBy: user.id,
+      },
+    });
+
+    for (const repository of source.repositories) {
+      const createdRepository = await this.db.repository.create({
+        data: {
+          repositoryGroupId: copy.id,
+          name: `${repository.name} Copy`,
+          slug: createId(),
+          description: repository.description,
+          createdBy: user.id,
+        },
+      });
+
+      if (repository.secrets.length > 0) {
+        await this.db.secret.createMany({
+          data: repository.secrets.map((secret) => ({
+            repositoryId: createdRepository.id,
+            key: secret.key,
+            value: secret.value,
+            encryptedValue: secret.encryptedValue,
+            type: secret.type,
+            sortOrder: secret.sortOrder,
+            description: secret.description,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })),
+        });
+      }
+    }
+
+    return copy;
   }
 
   /**
@@ -229,35 +281,32 @@ export class RepositoryGroupsService {
   }
 
   /**
-   * Soft Delete Repository Group
+   * Soft Delete Repository Group (cascades to its repositories)
    */
   async remove(id: string, user: any) {
     const group = await this.repositoryGroupAccess(id, user, true);
 
-    /**
-     * Optional safety:
-     * Jangan hapus group kalau masih punya repository aktif
-     */
-    const repositoryCount = await this.db.repository.count({
-      where: {
-        repositoryGroupId: group.id,
-        deletedAt: null,
-      },
-    });
+    const now = new Date();
+    await this.db.$transaction([
+      this.db.repository.updateMany({
+        where: {
+          repositoryGroupId: group.id,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: now,
+        },
+      }),
+      this.db.repositoryGroup.update({
+        where: {
+          id,
+        },
 
-    if (repositoryCount > 0) {
-      throw new ConflictException('Repository group still contains repositories');
-    }
-
-    await this.db.repositoryGroup.update({
-      where: {
-        id,
-      },
-
-      data: {
-        deletedAt: new Date(),
-      },
-    });
+        data: {
+          deletedAt: now,
+        },
+      }),
+    ]);
 
     return {
       success: true,
